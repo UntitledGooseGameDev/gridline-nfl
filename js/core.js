@@ -129,11 +129,62 @@
   /** Win chance for a game. Upcoming games include injuries; finished or live ones show the pregame number without them. */
   GL.chance = function (g, opts) {
     opts = opts || {};
-    var pre = g.state === 'pre' && !opts.noInjuries;
+    var live = g.state === 'in' && !opts.pregame;
+    var pre = (g.state === 'pre' || live) && !opts.noInjuries;
     var penH = pre ? GL.injuryDrag(g.home.id) : 0, penA = pre ? GL.injuryDrag(g.away.id) : 0;
     var p = Model.winProb(GL.ratingOf(g.home.id), GL.ratingOf(g.away.id), g.neutral, -penH, -penA);
     p.penH = penH; p.penA = penA;
+    if (live && g.home.score !== null && g.away.score !== null) {
+      var poss = g.situation && g.situation.possession ? (g.situation.possession === g.home.id ? 1 : g.situation.possession === g.away.id ? -1 : 0) : 0;
+      var lp = Model.liveWinProb(p.spread, g.home.score - g.away.score, Model.secondsLeft(g.period, g.clock), poss);
+      p.pregameSpread = p.spread; p.home = lp.home; p.away = lp.away; p.spread = lp.spread; p.live = true;
+    }
     return p;
+  };
+
+  /* ---------- where to watch ---------- */
+  var WATCH = [
+    [/^cbs$/i, 'CBS', 'https://www.paramountplus.com/', true], [/^fox$/i, 'FOX', 'https://www.foxsports.com/live', true],
+    [/^nbc$/i, 'NBC', 'https://www.nbc.com/live', true], [/^abc$/i, 'ABC', 'https://abc.com/watch-live', true],
+    [/^espn2?$/i, null, 'https://www.espn.com/watch/', false], [/peacock/i, 'Peacock', 'https://www.peacocktv.com/', false],
+    [/prime|amazon/i, 'Prime Video', 'https://www.amazon.com/primevideo', false], [/netflix/i, 'Netflix', 'https://www.netflix.com/', false],
+    [/youtube/i, 'YouTube', 'https://www.youtube.com/nfl', false], [/nfl network/i, 'NFL Network', 'https://www.nfl.com/network/watch/nfl-network-live', false],
+    [/nfl\+|nfl plus/i, 'NFL+', 'https://www.nfl.com/plus/', false],
+  ];
+  /** Chips for the networks showing a game, linking to the official place to watch. Free over-the-air networks get a note. */
+  GL.watch = function (g) {
+    var names = g.broadcasts || [];
+    if (!names.length || g.state === 'post') return '';
+    var ota = false;
+    var chips = names.map(function (n) {
+      var hit = null;
+      WATCH.forEach(function (w) { if (!hit && w[0].test(n)) hit = w; });
+      if (hit && hit[3]) ota = true;
+      var label = hit && hit[1] ? hit[1] : n;
+      return hit ? '<a class="chip watch-chip" href="' + esc(hit[2]) + '" target="_blank" rel="noopener">' + esc(label) + '</a>' : '<span class="chip watch-chip">' + esc(n) + '</span>';
+    }).join('');
+    return '<div class="watch"><span class="muted">Watch on</span> ' + chips + (ota ? '<span class="muted small" title="CBS, FOX, NBC and ABC games are free over the air with an antenna"> · free with an antenna</span>' : '') + '</div>';
+  };
+
+  /** A small field graphic: away end zone on the left, home on the right, ball and first-down line. */
+  GL.field = function (g) {
+    var sit = g.situation, th = GL.teamInfo(g.home.id), ta = GL.teamInfo(g.away.id);
+    var ball = null, line = null, dir = 0;
+    if (sit && sit.possession) {
+      dir = sit.possession === g.away.id ? 1 : -1;
+      var m = /([A-Za-z]{2,4})\s+(\d{1,2})/.exec(sit.where || '');
+      var fifty = /^\s*50\s*$/.test(sit.where || '');
+      var x = null;
+      if (fifty) x = 50;
+      else if (m) { var own = m[1].toUpperCase() === (sit.possession === g.away.id ? g.away.abbr : g.home.abbr).toUpperCase(); var n = parseInt(m[2], 10); x = (own ? n : 100 - n); if (dir < 0) x = 100 - x; }
+      if (x !== null) { ball = Math.max(0, Math.min(100, x)); if (sit.distance) line = Math.max(0, Math.min(100, ball + dir * sit.distance)); }
+    }
+    var ys = ''; for (var i = 1; i < 10; i++) ys += '<line x1="' + (10 + i * 10) + '" x2="' + (10 + i * 10) + '" y1="2" y2="38" stroke="#fff" stroke-opacity="' + (i === 5 ? .55 : .25) + '" stroke-width=".5"/>';
+    return '<svg class="field" viewBox="0 0 120 40" role="img" aria-label="' + esc(sit && sit.where ? 'Ball at ' + sit.where : 'Field') + '"><rect width="120" height="40" rx="3" fill="#2b7a47"/>' +
+      '<rect width="10" height="40" fill="' + esc(GL.visible(ta)) + '" opacity=".85"/><rect x="110" width="10" height="40" fill="' + esc(GL.visible(th)) + '" opacity=".85"/>' +
+      '<text x="5" y="22" fill="#fff" font-size="4.5" text-anchor="middle" transform="rotate(-90 5 20)">' + esc(g.away.abbr) + '</text><text x="115" y="22" fill="#fff" font-size="4.5" text-anchor="middle" transform="rotate(90 115 20)">' + esc(g.home.abbr) + '</text>' + ys +
+      (line !== null ? '<line x1="' + (10 + line) + '" x2="' + (10 + line) + '" y1="2" y2="38" stroke="#ffd23f" stroke-width="1"/>' : '') +
+      (ball !== null ? '<g><ellipse cx="' + (10 + ball) + '" cy="20" rx="3" ry="1.9" fill="#8a4b1f" stroke="#fff" stroke-width=".4"/><path d="M' + (10 + ball + dir * 5) + ' 20l' + (-dir * 2.5) + ' -2v4z" fill="#fff"/></g>' : '') + '</svg>';
   };
 
   /* ---------- components ---------- */
@@ -166,7 +217,7 @@
     var bar = '<div class="odds" role="img" aria-label="' + esc(a.abbr + ' ' + pa + ', ' + h.abbr + ' ' + ph) + ' win chance">' +
       '<div class="odds-bar"><span style="width:' + (p.away * 100).toFixed(1) + '%;background:' + cA + '"></span><span style="width:' + (p.home * 100).toFixed(1) + '%;background:' + cH + '"></span></div>' +
       '<div class="odds-txt"><span class="' + (!favHome ? 'fav' : '') + '">' + esc(a.abbr) + ' ' + pa + '</span>' +
-      '<span class="muted">' + esc(Model.spreadText(p.spread, h.abbr, a.abbr)) + (done ? ' · pregame' : '') + '</span>' +
+      '<span class="muted">' + esc(Model.spreadText(p.spread, h.abbr, a.abbr)) + (done ? ' · pregame' : p.live ? ' · live' : '') + '</span>' +
       '<span class="' + (favHome ? 'fav' : '') + '">' + ph + ' ' + esc(h.abbr) + '</span></div>' +
       (drag.length ? '<div class="drag muted" title="Points the model takes off for players listed out, doubtful or questionable">Injuries: ' + esc(drag.join(', ')) + ' pts</div>' : '') + '</div>';
     var pickRow = '';
@@ -178,7 +229,7 @@
     }
     return '<article class="game' + (live ? ' live' : '') + '" data-game="' + esc(g.id) + '"><div class="g-head"><span>' + esc(status) + '</span>' +
       (g.state !== 'pre' ? '<a href="#/game/' + esc(g.id) + '" class="boxlink">Box score ›</a>' : (g.venue ? '<span class="muted">' + esc(g.venue) + '</span>' : '')) + '</div>' +
-      row(ta, a) + row(th, h) + bar + pickRow + '</article>';
+      row(ta, a) + row(th, h) + (live && g.situation && (g.situation.shortText || g.situation.where) ? '<div class="sit">' + (g.situation.possession ? '\u25CF ' + esc(g.situation.possession === h.id ? h.abbr : a.abbr) + ' ball \u00b7 ' : '') + esc([g.situation.shortText, g.situation.where].filter(Boolean).join(' at ')) + '</div>' : '') + bar + GL.watch(g) + pickRow + '</article>';
   };
 
   /** Registry so the pick buttons can find the game they belong to. */

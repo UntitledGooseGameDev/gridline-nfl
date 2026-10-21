@@ -201,3 +201,21 @@ tr.in td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .tabs a { white-space: nowrap; }
 a.btn { display: inline-flex; align-items: center; }
 .state p { overflow-wrap: anywhere; }
+/* live: watch, tracker, now strip */
+.watch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: .85rem; }
+.watch-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); font-weight: 600; font-size: .8rem; }
+a.watch-chip:hover { border-color: var(--accent); }
+.sit { font-size: .85rem; font-weight: 600; color: var(--accent); padding-top: 2px; }
+.sit.big { font-size: 1.05rem; margin: 10px 0 2px; }
+.field { width: 100%; height: auto; display: block; border-radius: 6px; }
+.tracker { margin: 16px 0; }
+.spark { margin-top: 10px; } .spark svg { width: 100%; height: 48px; display: block; color: var(--fg); }
+.linkish { background: none; border: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+#nowstrip { padding-top: 10px; }
+.now { display: flex; align-items: stretch; gap: 10px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 8px 8px 8px 12px; }
+.now-tag { display: flex; align-items: center; font: 700 .85rem var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+.now-list { display: flex; gap: 8px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+.now-game { display: grid; padding: 2px 12px; border-left: 1px solid var(--line); white-space: nowrap; }
+.now-game small { color: var(--muted); }
+.now-x { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--muted); font-size: 1.6rem; line-height: 1; border-radius: 10px; cursor: pointer; }
+.now-x:hover { background: var(--raised); color: var(--fg); }

@@ -52,3 +52,9 @@ ESPN's public endpoints are unofficial and can change without notice. All parsin
 Pages that depend on a feed that fails (injuries, leaders, box scores) show a friendly message or switch off just that feature; `#/debug` tests every feed.
 
 Run `npm test` for the unit tests.
+
+## Live games
+- **Where to watch**: each upcoming or live game shows its network(s) with links to the official place to watch (no video is embedded or restreamed; NFL games are licensed).
+- **On now** bar on every page while games are live (close it with the x; it stays closed for the browser session, with a "Show live games bar" link in the footer).
+- **Live tracker** on the box-score page: field graphic, down and distance, last play, and a win-chance line that updates as the game goes.
+- **Live win chance** blends the pregame edge with the score, time left and who has the ball.

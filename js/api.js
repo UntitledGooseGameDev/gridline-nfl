@@ -135,6 +135,28 @@
     };
   }
 
+  /** TV / streaming names for a game (national first), from either broadcast shape ESPN uses. */
+  function parseBroadcasts(comp) {
+    var names = [];
+    function add(n) { n = str(n).trim(); if (n && names.indexOf(n) < 0) names.push(n); }
+    (comp.broadcasts || []).forEach(function (b) { (b.names || []).forEach(add); if (b.name) add(b.name); });
+    (comp.geoBroadcasts || []).forEach(function (b) { if (b.media) add(b.media.shortName); });
+    if (!names.length && comp.broadcast) add(comp.broadcast);
+    return names;
+  }
+
+  /** Down, distance and ball position for a live game. */
+  function parseSituation(s) {
+    if (!s || typeof s !== 'object') return null;
+    var lp = s.lastPlay || {};
+    var out = {
+      down: num(s.down, 0), distance: num(s.distance, 0), possession: str(s.possession || (lp.team && lp.team.id)),
+      shortText: str(s.shortDownDistanceText || s.downDistanceText), where: str(s.possessionText), redZone: !!s.isRedZone,
+      lastPlay: str(lp.text),
+    };
+    return out.shortText || out.where || out.lastPlay ? out : null;
+  }
+
   function parseEvent(ev) {
     var comp = (ev.competitions && ev.competitions[0]) || {};
     var comps = (comp.competitors || []).map(parseCompetitor);
@@ -145,9 +167,9 @@
     return {
       id: str(ev.id), date: str(ev.date), name: str(ev.name), week: ev.week && ev.week.number ? num(ev.week.number) : null,
       state: str(type.state) || 'pre', completed: !!type.completed, detail: str(type.shortDetail || type.detail || type.description),
-      clock: str(status.displayClock), period: num(status.period),
+      clock: str(status.displayClock || (ev.status || {}).displayClock), period: num(status.period || (ev.status || {}).period),
       neutral: !!comp.neutralSite, venue: comp.venue && comp.venue.fullName ? str(comp.venue.fullName) : '',
-      home: home, away: away,
+      home: home, away: away, broadcasts: parseBroadcasts(comp), situation: parseSituation(comp.situation),
     };
   }
 
@@ -246,6 +268,7 @@
     return {
       id: str(j.header && j.header.id), state: str(type.state) || 'pre', detail: str(type.shortDetail || type.detail || type.description),
       home: home, away: away, date: str(hc.date), venue: j.gameInfo && j.gameInfo.venue && j.gameInfo.venue.fullName ? str(j.gameInfo.venue.fullName) : '',
+      broadcasts: parseBroadcasts(hc), situation: parseSituation(j.situation || (j.drives && j.drives.current && j.drives.current.situation)),
       teamStats: teamStats, players: players, plays: plays, available: teamStats.some(function (t) { return t.stats.length; }) || plays.length > 0,
     };
   }
@@ -351,7 +374,7 @@
       }));
     },
     // exposed for tests
-    _parse: { teams: parseTeams, standings: parseStandings, scoreboard: parseScoreboard, roster: parseRoster, stats: parseStats, schedule: parseSchedule, injuries: parseInjuries, summary: parseSummary, leaders: parseLeaders, overview: parseOverview, athlete: parseAthlete, calendar: parseCalendar },
+    _parse: { broadcasts: parseBroadcasts, situation: parseSituation, teams: parseTeams, standings: parseStandings, scoreboard: parseScoreboard, roster: parseRoster, stats: parseStats, schedule: parseSchedule, injuries: parseInjuries, summary: parseSummary, leaders: parseLeaders, overview: parseOverview, athlete: parseAthlete, calendar: parseCalendar },
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

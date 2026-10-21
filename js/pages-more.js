@@ -95,12 +95,35 @@
   /* ---------- a game's box score ---------- */
   P.game = function (id) {
     GL.loading('Loading game…');
+    var samples = [];
+    function spark(v, abbr) {
+      if (v.length < 3) return '';
+      var pts = v.map(function (y, i) { return (i / (v.length - 1) * 200).toFixed(1) + ',' + (30 - y * 30).toFixed(1); }).join(' ');
+      return '<div class="spark"><small class="muted">' + esc(abbr) + ' win chance since you opened this page</small><svg viewBox="0 0 200 30" preserveAspectRatio="none"><line x1="0" x2="200" y1="15" y2="15" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="2 2"/><polyline fill="none" stroke="var(--accent)" stroke-width="1.5" points="' + pts + '"/></svg></div>';
+    }
+    function withBoard(g, fresh) {
+      if (g.state !== 'in' && g.state !== 'pre') return Promise.resolve(g);
+      return Api.scoreboard(null, null, null, fresh).then(function (sb) {
+        var x = sb.games.filter(function (q) { return q.id === id; })[0];
+        if (x) { g.period = x.period; g.clock = x.clock; if (!g.situation) g.situation = x.situation; if (!g.broadcasts.length) g.broadcasts = x.broadcasts; }
+        return g;
+      }).catch(function () { return g; });
+    }
     function draw(g, first) {
       var h = g.home, a = g.away;
       if (!h.id || !a.id) { GL.view.innerHTML = '<div class="state"><h2>Game not found</h2><p><a href="#/">Back home</a></p></div>'; return; }
       var th = GL.teamInfo(h.id), ta = GL.teamInfo(a.id);
       var done = g.state === 'post', live = g.state === 'in';
+      var m = /Q?(\d)\w*\s+(\d+:\d{2})/.exec(g.detail || '');
+      var gm = { id: id, state: g.state, home: h, away: a, neutral: false, period: g.period || (m ? +m[1] : 0), clock: g.clock || (m ? m[2] : ''), situation: g.situation, broadcasts: g.broadcasts };
       var p = GL.chance({ state: done || live ? 'post' : 'pre', home: h, away: a, neutral: false });
+      var lp = live ? GL.chance(gm) : null;
+      if (lp && lp.live) { samples.push(lp.home); if (samples.length > 120) samples.shift(); }
+      var show = lp && lp.live ? lp : p;
+      var sit = g.situation;
+      var tracker = live ? '<section class="panel tracker"><div class="h-row"><h2>Live tracker</h2><span class="muted">' + esc(g.detail || '') + '</span></div>' + GL.field(gm) +
+        '<p class="sit big">' + (sit && sit.possession ? '\u25CF ' + esc(sit.possession === h.id ? h.abbr : a.abbr) + ' ball \u00b7 ' : '') + esc(sit ? [sit.shortText, sit.where].filter(Boolean).join(' at ') : 'Waiting for the next play') + (sit && sit.redZone ? ' <span class="neg">Red zone</span>' : '') + '</p>' +
+        (sit && sit.lastPlay ? '<p class="muted">Last play: ' + esc(sit.lastPlay) + '</p>' : '') + spark(samples, h.abbr) + '</section>' : '';
       var byTeam = {};
       g.teamStats.forEach(function (t) { byTeam[t.id] = t; });
       var A = byTeam[a.id], H = byTeam[h.id];
@@ -125,12 +148,12 @@
       var status = done ? 'Final' : live ? 'Live · ' + g.detail : g.detail || GL.dayLabel(g.date);
       GL.view.innerHTML = '<header class="page-h"><div class="h-row"><h1>' + esc(a.abbr) + ' at ' + esc(h.abbr) + '</h1>' + GL.shareButton(a.name + ' at ' + h.name) + '</div><p class="lede">' + esc(status) + (g.venue ? ' · ' + esc(g.venue) : '') + ' <span id="livedot" class="livedot" ' + (live ? '' : 'hidden') + '>Updating live</span></p></header>' +
         '<section class="panel scorebug"><a class="sb-team' + (done && a.winner ? ' win' : '') + '" href="#/team/' + esc(a.id) + '">' + GL.logo(ta, 'lg') + '<b>' + esc(ta.name || a.name) + '</b><small>' + esc(a.record) + '</small></a><div class="sb-score">' + esc(a.score === null ? '' : a.score) + '<span class="muted"> – </span>' + esc(h.score === null ? '' : h.score) + '</div><a class="sb-team' + (done && h.winner ? ' win' : '') + '" href="#/team/' + esc(h.id) + '">' + GL.logo(th, 'lg') + '<b>' + esc(th.name || h.name) + '</b><small>' + esc(h.record) + '</small></a>' +
-        '<div class="odds sb-odds"><div class="odds-bar"><span style="width:' + (p.away * 100).toFixed(1) + '%;background:' + GL.visible(ta) + '"></span><span style="width:' + (p.home * 100).toFixed(1) + '%;background:' + GL.visible(th) + '"></span></div><div class="odds-txt"><span>' + esc(a.abbr) + ' ' + Model.pct(p.away) + '</span><span class="muted">' + (done || live ? 'pregame win chance' : 'win chance') + '</span><span>' + Model.pct(p.home) + ' ' + esc(h.abbr) + '</span></div></div></section>' +
-        (g.available ? '<div class="stack">' + plays + (statRows ? '<section class="panel"><h2>Team stats</h2><table class="data vs"><thead><tr><th class="r">' + esc(a.abbr) + '</th><th class="c"></th><th>' + esc(h.abbr) + '</th></tr></thead><tbody>' + statRows + '</tbody></table></section>' : '') + '<div class="two">' + playerBlocks + '</div></div>' : GL.empty('The box score appears once the game starts.', 'Check back at kickoff.'));
+        '<div class="odds sb-odds"><div class="odds-bar"><span style="width:' + (show.away * 100).toFixed(1) + '%;background:' + GL.visible(ta) + '"></span><span style="width:' + (show.home * 100).toFixed(1) + '%;background:' + GL.visible(th) + '"></span></div><div class="odds-txt"><span>' + esc(a.abbr) + ' ' + Model.pct(show.away) + '</span><span class="muted">' + (done ? 'pregame win chance' : show.live ? 'live win chance' : 'win chance') + '</span><span>' + Model.pct(show.home) + ' ' + esc(h.abbr) + '</span></div></div></section>' +
+        GL.watch(gm) + tracker + (g.available ? '<div class="stack">' + plays + (statRows ? '<section class="panel"><h2>Team stats</h2><table class="data vs"><thead><tr><th class="r">' + esc(a.abbr) + '</th><th class="c"></th><th>' + esc(h.abbr) + '</th></tr></thead><tbody>' + statRows + '</tbody></table></section>' : '') + '<div class="two">' + playerBlocks + '</div></div>' : GL.empty('The box score appears once the game starts.', 'Check back at kickoff.'));
       GL.banner();
-      if (first && live) GL.every(30000, function () { Api.summary(id, true).then(function (n) { draw(n, false); }).catch(function () {}); });
+      if (first && live) GL.every(30000, function () { Api.summary(id, true).then(function (n) { return withBoard(n, true); }).then(function (n) { draw(n, false); }).catch(function () {}); });
     }
-    GL.ensureBase().then(function () { return Api.summary(id); }).then(function (g) { draw(g, true); }).catch(function (e) { GL.failed(e, function () { P.game(id); }); });
+    GL.ensureBase().then(function () { return Api.summary(id); }).then(function (g) { return withBoard(g, false); }).then(function (g) { draw(g, true); }).catch(function (e) { GL.failed(e, function () { P.game(id); }); });
   };
 
   /* ---------- compare two teams ---------- */

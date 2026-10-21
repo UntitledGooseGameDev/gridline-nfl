@@ -207,7 +207,29 @@
     };
   }
 
+  /* ---------- live games ---------- */
+  /** Seconds left in regulation (or the overtime period) from the period number and a clock like "7:42". */
+  function secondsLeft(period, clock) {
+    var m = /^(\d+):(\d{2})/.exec(String(clock || '')), c = m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0;
+    period = period || 1;
+    if (period >= 5) return Math.min(c, 600);
+    return Math.max(0, (4 - period) * 900 + Math.min(c, 900));
+  }
+  /**
+   * Win chance while a game is on. pregameSpread = expected home margin before kickoff,
+   * lead = home score minus away score, poss = +1 home has the ball, -1 away, 0 unknown.
+   * The pregame edge fades with the clock and the spread of possible outcomes narrows.
+   */
+  function liveWinProb(pregameSpread, lead, secs, poss) {
+    var frac = Math.max(0, Math.min(1, secs / 3600));
+    var mean = lead + pregameSpread * frac + (secs > 0 ? (poss || 0) * 2.0 : 0);
+    var sd = Math.max(SIGMA * Math.sqrt(frac), 1.5);
+    var home = normCdf(mean / sd);
+    return { home: home, away: 1 - home, spread: mean };
+  }
+
   var api = {
+    secondsLeft: secondsLeft, liveWinProb: liveWinProb,
     HOME_FIELD: HOME_FIELD, SIGMA: SIGMA, PRIOR_GAMES: PRIOR_GAMES, CARRYOVER: CARRYOVER, MAX_INJURY: MAX_INJURY, DIVISIONS: DIVISIONS,
     divisionOf: divisionOf, normCdf: normCdf, rating: rating, winProb: winProb, injuryPenalty: injuryPenalty,
     projectRecord: projectRecord, pct: pct, pctSim: pctSim, spreadText: spreadText,

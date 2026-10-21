@@ -156,3 +156,23 @@ test('new parsers: injuries, leaders, overview, summary survive real-looking and
   assert.equal(Api._parse.summary({}).available, false);
   assert.equal(Api._parse.summary({}).state, 'pre');
 });
+
+test('live win chance: leaders gain as the clock runs, a tie late is a coin flip, the final lead is decisive', () => {
+  assert.equal(Model.secondsLeft(1, '15:00'), 3600); assert.equal(Model.secondsLeft(2, '0:00'), 1800); assert.equal(Model.secondsLeft(4, '1:30'), 90); assert.equal(Model.secondsLeft(5, '12:00'), 600);
+  const early = Model.liveWinProb(0, 7, 3000, 0).home, late = Model.liveWinProb(0, 7, 300, 0).home;
+  assert.ok(late > early && early > 0.5);
+  assert.ok(Math.abs(Model.liveWinProb(0, 0, 100, 0).home - 0.5) < 1e-9);
+  assert.ok(Model.liveWinProb(0, 3, 0, 0).home > 0.95);
+  assert.ok(Model.liveWinProb(0, 0, 600, 1).home > 0.5);
+  const kickoff = Model.liveWinProb(4, 0, 3600, 0).home;
+  assert.ok(Math.abs(kickoff - Model.winProb(4, 0, true).home) < 0.02 || kickoff > 0.5);
+});
+
+test('parsers read broadcasts and the live situation', () => {
+  assert.deepEqual(Api._parse.broadcasts({ broadcasts: [{ names: ['CBS', 'Paramount+'] }], geoBroadcasts: [{ media: { shortName: 'CBS' } }] }), ['CBS', 'Paramount+']);
+  assert.deepEqual(Api._parse.broadcasts({ broadcast: 'FOX' }), ['FOX']);
+  assert.deepEqual(Api._parse.broadcasts({}), []);
+  const s = Api._parse.situation({ down: 2, distance: 7, possession: '25', shortDownDistanceText: '2nd & 7', possessionText: 'SF 35', isRedZone: false, lastPlay: { text: 'Pass for 5 yards' } });
+  assert.equal(s.shortText, '2nd & 7'); assert.equal(s.possession, '25'); assert.equal(s.where, 'SF 35');
+  assert.equal(Api._parse.situation(null), null);
+});
