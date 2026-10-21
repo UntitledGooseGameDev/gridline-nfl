@@ -32,7 +32,8 @@
         '<aside class="panel"><h2>Power rankings</h2><ol class="power">' + top.map(function (id) {
           var t = GL.teamInfo(id), s = S.standings[id];
           return '<li><a href="#/team/' + esc(id) + '">' + GL.logo(t, 'sm') + '<span class="pn">' + esc(t.name) + '</span><span class="pr">' + esc(s.overall || (s.w + '-' + s.l)) + '</span><span class="pv">' + GL.signed(GL.ratingOf(id)) + '</span></a></li>';
-        }).join('') + '</ol><p class="muted small">Strength is points above an average team. <a href="#/standings">Full table</a></p></aside></div>';
+        }).join('') + '</ol><p class="muted small">Strength is points above an average team. <a href="#/standings">Full table</a></p></aside></div><section class="panel" id="headlines" style="margin-top:16px"><h2>Headlines</h2><div id="hl" class="muted">Loading\u2026</div></section>';
+      Api.news().then(function (n) { var e = $('#hl'); if (e) e.outerHTML = GL.newsList(n, 6); }).catch(function () { var e = $('#headlines'); if (e) e.remove(); });
       function favCard(sb2) {
         var box = $('#favbox'); if (!box) return;
         if (!fav || !S.standings[fav]) { box.innerHTML = ''; return; }
@@ -121,12 +122,12 @@
       s = s || { w: 0, l: 0, t: 0, pf: 0, pa: 0, overall: '', conf: '', home: '', road: '', streak: '', diff: 0 };
       var r = S.ratings[id] || { rating: 0, gp: 0, mov: 0 };
       var color = GL.visible(t);
-      var tabs = ['overview', 'stats', 'roster'];
+      var tabs = ['overview', 'stats', 'roster', 'news'];
       tab = tabs.indexOf(tab) >= 0 ? tab : 'overview';
       var isFav = GL.fav() === id;
       var inj = GL.injuryDrag(id);
       GL.view.innerHTML = '<header class="team-h" style="--tc:' + esc(color) + '">' + GL.logo(t, 'xl') + '<div><h1>' + esc(t.name) + '</h1><p class="muted">' + esc(s.conf) + (s.overall ? ' · ' + esc(s.overall) : '') + (s.streak ? ' · ' + esc(s.streak) : '') + '</p>' +
-        '<div class="actions"><button class="btn ghost" id="favbtn" aria-pressed="' + isFav + '">' + (isFav ? '★ Your team' : '☆ Make this my team') + '</button> ' + GL.shareButton(t.name + ' on Gridline') + ' <a class="btn ghost" href="#/compare/' + esc(id) + '">Compare</a></div></div>' +
+        '<div class="actions"><button class="btn ghost" id="favbtn" aria-pressed="' + isFav + '">' + (isFav ? '★ Your team' : '☆ Make this my team') + '</button> ' + GL.shareButton(t.name + ' on Gridline') + ' <a class="btn ghost" href="#/compare/' + esc(id) + '">Compare</a>' + (isFav && typeof Notification !== 'undefined' ? ' <button class="btn ghost" id="alertbtn">' + (GL.alertsOn() ? '\uD83D\uDD14 Alerts on' : '\uD83D\uDD15 Turn on alerts') + '</button>' : '') + '</div></div>' +
         '<div class="kpis"><div><b>' + GL.signed(r.rating) + '</b><small>Strength</small></div><div><b>#' + (S.power.indexOf(id) + 1) + '</b><small>Power rank</small></div><div><b>' + GL.fmt1(r.gp ? s.pf / r.gp : 0) + '</b><small>Pts for / g</small></div><div><b>' + GL.fmt1(r.gp ? s.pa / r.gp : 0) + '</b><small>Pts against / g</small></div>' +
         (inj >= 0.5 ? '<div><b class="neg">' + GL.signed(-inj) + '</b><small>Injury drag</small></div>' : '') + '</div></header>' +
         '<nav class="tabs" role="tablist">' + tabs.map(function (k) { return '<a href="#/team/' + esc(id) + '/' + k + '" class="' + (k === tab ? 'on' : '') + '" role="tab" aria-selected="' + (k === tab) + '">' + k[0].toUpperCase() + k.slice(1) + '</a>'; }).join('') + '</nav><div id="tab"></div>';
@@ -134,11 +135,15 @@
         var now = GL.fav() === id ? '' : id; GL.setFav(now);
         this.textContent = now ? '★ Your team' : '☆ Make this my team'; this.setAttribute('aria-pressed', !!now);
         GL.toast(now ? t.name + ' is now your team' : 'Team cleared');
+        P.team(id, tab);
       };
+      var ab = $('#alertbtn');
+      if (ab) ab.onclick = function () { GL.setAlerts(!GL.alertsOn()).then(function (on) { ab.textContent = on ? '\uD83D\uDD14 Alerts on' : '\uD83D\uDD15 Turn on alerts'; if (on) GL.toast('You will be alerted when ' + t.name + ' kick off and finish while Gridline is open'); }); };
       var box = $('#tab');
       box.innerHTML = '<div class="state"><div class="spin" aria-hidden="true"></div></div>';
       if (tab === 'overview') teamOverview(id, s, box);
       else if (tab === 'stats') teamStats(id, box);
+      else if (tab === 'news') { Api.news(id).then(function (n) { box.innerHTML = GL.newsList(n, 12); }).catch(function () { box.innerHTML = GL.empty('Could not load headlines.', 'ESPN\'s news feed did not respond. Try again in a minute.'); }); }
       else teamRoster(id, box);
       GL.banner();
     }).catch(function (e) { GL.failed(e, function () { P.team(id, tab); }); });

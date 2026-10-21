@@ -58,9 +58,27 @@
     }).join('') + '</div><button class="now-x" id="nowx" aria-label="Close live games bar" title="Close">\u00d7</button></div>';
     document.getElementById('nowx').onclick = function () { setHidden(true); drawNow(); };
   }
+  /* Alerts for your team while Gridline is open: kickoff, scores and the final. */
+  var seen = {};
+  function checkAlerts(games) {
+    var fav = GL.fav();
+    if (!fav || !GL.alertsOn()) { seen = {}; return; }
+    games.forEach(function (g) {
+      if (g.home.id !== fav && g.away.id !== fav) return;
+      var prev = seen[g.id], score = (g.away.score === null ? 0 : g.away.score) + '-' + (g.home.score === null ? 0 : g.home.score);
+      var line = g.away.abbr + ' ' + (g.away.score === null ? 0 : g.away.score) + ', ' + g.home.abbr + ' ' + (g.home.score === null ? 0 : g.home.score);
+      if (prev) {
+        if (prev.state === 'pre' && g.state === 'in') GL.notify('Kickoff: ' + g.away.abbr + ' at ' + g.home.abbr, 'Your game has started. Follow it live on Gridline.');
+        else if (prev.state !== 'post' && g.state === 'post') GL.notify('Final: ' + line, g.home.winner ? g.home.name + ' win' : g.away.winner ? g.away.name + ' win' : 'Tie game');
+        else if (g.state === 'in' && prev.score !== score) GL.notify('Score update', line + (g.detail ? ' \u00b7 ' + g.detail : ''));
+      }
+      seen[g.id] = { state: g.state, score: score };
+    });
+  }
   function pollNow() {
     GL.ensureBase().then(function () { return window.Api.scoreboard(); }).then(function (sb) {
       liveNow = sb.games.filter(function (g) { return g.state === 'in'; }); drawNow();
+      checkAlerts(sb.games);
     }).catch(function () {});
   }
   document.addEventListener('click', function (e) { if (e.target && e.target.id === 'nowshow') { setHidden(false); drawNow(); } });

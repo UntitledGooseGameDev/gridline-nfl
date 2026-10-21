@@ -142,6 +142,50 @@
     return p;
   };
 
+  /** ESPN's betting line next to the model's number. Informational only. */
+  GL.market = function (g, p) {
+    var l = g.line;
+    if (!l || g.state === 'post' || (l.homeMargin === null && l.overUnder === null)) return '';
+    var bits = [];
+    if (l.homeMargin !== null) bits.push('Market: ' + esc(Model.spreadText(l.homeMargin, g.home.abbr, g.away.abbr)));
+    if (l.overUnder !== null) bits.push('O/U ' + esc(l.overUnder));
+    var diff = '';
+    if (l.homeMargin !== null && !(p && p.live) && p) { var d = p.spread - l.homeMargin; if (Math.abs(d) >= 2) diff = ' \u00b7 model likes ' + esc(d > 0 ? g.home.abbr : g.away.abbr) + ' more'; }
+    return '<div class="market muted" title="The point spread and total from ESPN\'s feed. For information only, not betting advice.">' + bits.join(' \u00b7 ') + diff + '</div>';
+  };
+
+  /** News list as cards that open ESPN articles in a new tab. */
+  GL.newsList = function (items, max) {
+    items = (items || []).slice(0, max || 8);
+    if (!items.length) return GL.empty('No headlines right now.', 'ESPN had no news to show for this.');
+    return '<ul class="news">' + items.map(function (a) {
+      var when = a.published ? new Date(a.published) : null;
+      return '<li><a href="' + esc(a.link) + '" target="_blank" rel="noopener">' + (a.image ? '<img src="' + esc(a.image) + '" alt="" loading="lazy" width="96" height="54">' : '') +
+        '<span><b>' + esc(a.headline) + '</b>' + (a.description ? '<small>' + esc(a.description) + '</small>' : '') +
+        '<small class="muted">' + (when && !isNaN(when) ? esc(when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })) + ' \u00b7 ' : '') + 'ESPN</small></span></a></li>';
+    }).join('') + '</ul>';
+  };
+
+  /* ---------- alerts for your team (work while Gridline is open) ---------- */
+  GL.alertsOn = function () { return GL.store.get('alerts', false) === true && typeof Notification !== 'undefined' && Notification.permission === 'granted'; };
+  GL.setAlerts = function (on) {
+    if (typeof Notification === 'undefined') { GL.toast('This browser does not support alerts'); return Promise.resolve(false); }
+    if (!on) { GL.store.set('alerts', false); return Promise.resolve(false); }
+    var ask = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
+    return Promise.resolve(ask).then(function (r) {
+      var ok = r === 'granted'; GL.store.set('alerts', ok);
+      if (!ok) GL.toast('Alerts are blocked in your browser settings');
+      return ok;
+    });
+  };
+  GL.notify = function (title, body) {
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(function (reg) { if (reg && reg.showNotification) reg.showNotification(title, { body: body, icon: 'assets/icon-192.png', tag: 'gridline' }); else new Notification(title, { body: body, icon: 'assets/icon-192.png' }); }).catch(function () { new Notification(title, { body: body }); });
+      } else new Notification(title, { body: body, icon: 'assets/icon-192.png' });
+    } catch (e) { GL.toast(title + ': ' + body); }
+  };
+
   /* ---------- where to watch ---------- */
   var WATCH = [
     [/^cbs$/i, 'CBS', 'https://www.paramountplus.com/', true], [/^fox$/i, 'FOX', 'https://www.foxsports.com/live', true],
@@ -229,7 +273,7 @@
     }
     return '<article class="game' + (live ? ' live' : '') + '" data-game="' + esc(g.id) + '"><div class="g-head"><span>' + esc(status) + '</span>' +
       (g.state !== 'pre' ? '<a href="#/game/' + esc(g.id) + '" class="boxlink">Box score ›</a>' : (g.venue ? '<span class="muted">' + esc(g.venue) + '</span>' : '')) + '</div>' +
-      row(ta, a) + row(th, h) + (live && g.situation && (g.situation.shortText || g.situation.where) ? '<div class="sit">' + (g.situation.possession ? '\u25CF ' + esc(g.situation.possession === h.id ? h.abbr : a.abbr) + ' ball \u00b7 ' : '') + esc([g.situation.shortText, g.situation.where].filter(Boolean).join(' at ')) + '</div>' : '') + bar + GL.watch(g) + pickRow + '</article>';
+      row(ta, a) + row(th, h) + (live && g.situation && (g.situation.shortText || g.situation.where) ? '<div class="sit">' + (g.situation.possession ? '\u25CF ' + esc(g.situation.possession === h.id ? h.abbr : a.abbr) + ' ball \u00b7 ' : '') + esc([g.situation.shortText, g.situation.where].filter(Boolean).join(' at ')) + '</div>' : '') + bar + GL.market(g, p) + GL.watch(g) + pickRow + '</article>';
   };
 
   /** Registry so the pick buttons can find the game they belong to. */

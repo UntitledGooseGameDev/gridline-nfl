@@ -157,6 +157,27 @@
     return out.shortText || out.where || out.lastPlay ? out : null;
   }
 
+  /** The betting line ESPN shows for a game: text like "KC -3.5", the total, and the implied home margin. */
+  function parseOdds(comp, homeAbbr) {
+    var o = (comp.odds || [])[0];
+    if (!o) return null;
+    var details = str(o.details), ou = o.overUnder !== undefined ? num(o.overUnder, null) : null, margin = null;
+    if (/^even$/i.test(details) || /^pick/i.test(details)) margin = 0;
+    var m = /^([A-Za-z]{2,4})\s+([+-]?\d+(?:\.\d+)?)/.exec(details);
+    if (m) { var n = parseFloat(m[2]); var teamMargin = -n; margin = m[1].toUpperCase() === String(homeAbbr).toUpperCase() ? teamMargin : -teamMargin; }
+    if (!details && ou === null) return null;
+    return { details: details, overUnder: ou, homeMargin: margin, provider: o.provider ? str(o.provider.name) : '' };
+  }
+
+  /** News articles from ESPN's news feed. */
+  function parseNews(j) {
+    return (j.articles || []).map(function (a) {
+      var link = a.links && a.links.web && a.links.web.href ? a.links.web.href : '';
+      var img = (a.images || [])[0];
+      return { headline: str(a.headline), description: str(a.description), published: str(a.published), link: link, image: img && img.url ? img.url : '', byline: str(a.byline) };
+    }).filter(function (a) { return a.headline && /^https:\/\//.test(a.link); });
+  }
+
   function parseEvent(ev) {
     var comp = (ev.competitions && ev.competitions[0]) || {};
     var comps = (comp.competitors || []).map(parseCompetitor);
@@ -169,7 +190,7 @@
       state: str(type.state) || 'pre', completed: !!type.completed, detail: str(type.shortDetail || type.detail || type.description),
       clock: str(status.displayClock || (ev.status || {}).displayClock), period: num(status.period || (ev.status || {}).period),
       neutral: !!comp.neutralSite, venue: comp.venue && comp.venue.fullName ? str(comp.venue.fullName) : '',
-      home: home, away: away, broadcasts: parseBroadcasts(comp), situation: parseSituation(comp.situation),
+      home: home, away: away, broadcasts: parseBroadcasts(comp), situation: parseSituation(comp.situation), line: parseOdds(comp, home && home.abbr),
     };
   }
 
@@ -332,6 +353,7 @@
     schedule: function (id) { return getJSON(site('/teams/' + encodeURIComponent(id) + '/schedule')).then(parseSchedule); },
     injuries: function () { return getJSON(site('/injuries'), { keep: true }).then(parseInjuries); },
     summary: function (id, fresh) { return getJSON(site('/summary?event=' + encodeURIComponent(id)), { ttl: fresh ? 0 : 60 * 1000 }).then(parseSummary); },
+    news: function (teamId) { return getJSON(site('/news?limit=12' + (teamId ? '&team=' + encodeURIComponent(teamId) : '')), { ttl: 10 * 60 * 1000 }).then(parseNews); },
     leaders: function (kind, year) {
       var spec = LEADER_SORT[kind] || LEADER_SORT.passing;
       var path = '/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=true&page=1&limit=15&sort=' + encodeURIComponent(spec[1] + ':desc') + '&season=' + (year || '') + '&seasontype=2';
@@ -374,7 +396,7 @@
       }));
     },
     // exposed for tests
-    _parse: { broadcasts: parseBroadcasts, situation: parseSituation, teams: parseTeams, standings: parseStandings, scoreboard: parseScoreboard, roster: parseRoster, stats: parseStats, schedule: parseSchedule, injuries: parseInjuries, summary: parseSummary, leaders: parseLeaders, overview: parseOverview, athlete: parseAthlete, calendar: parseCalendar },
+    _parse: { odds: parseOdds, news: parseNews, broadcasts: parseBroadcasts, situation: parseSituation, teams: parseTeams, standings: parseStandings, scoreboard: parseScoreboard, roster: parseRoster, stats: parseStats, schedule: parseSchedule, injuries: parseInjuries, summary: parseSummary, leaders: parseLeaders, overview: parseOverview, athlete: parseAthlete, calendar: parseCalendar },
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

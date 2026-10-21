@@ -58,3 +58,8 @@ Run `npm test` for the unit tests.
 - **On now** bar on every page while games are live (close it with the x; it stays closed for the browser session, with a "Show live games bar" link in the footer).
 - **Live tracker** on the box-score page: field graphic, down and distance, last play, and a win-chance line that updates as the game goes.
 - **Live win chance** blends the pregame edge with the score, time left and who has the ball.
+
+## Alerts, news and lines
+- **Alerts** (team page, once it's your team): kickoff, score changes and final, as browser notifications. They only fire while Gridline is open in a tab or installed app, because a static site has no server to push from.
+- **Headlines** on the home page and a News tab on each team, linking to ESPN articles.
+- **Market line**: ESPN's spread and over/under shown next to the model's number on each game, for information only.

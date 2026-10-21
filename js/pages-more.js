@@ -105,7 +105,7 @@
       if (g.state !== 'in' && g.state !== 'pre') return Promise.resolve(g);
       return Api.scoreboard(null, null, null, fresh).then(function (sb) {
         var x = sb.games.filter(function (q) { return q.id === id; })[0];
-        if (x) { g.period = x.period; g.clock = x.clock; if (!g.situation) g.situation = x.situation; if (!g.broadcasts.length) g.broadcasts = x.broadcasts; }
+        if (x) { g.period = x.period; g.clock = x.clock; if (!g.situation) g.situation = x.situation; if (!g.broadcasts.length) g.broadcasts = x.broadcasts; if (!g.line) g.line = x.line; }
         return g;
       }).catch(function () { return g; });
     }
@@ -115,7 +115,7 @@
       var th = GL.teamInfo(h.id), ta = GL.teamInfo(a.id);
       var done = g.state === 'post', live = g.state === 'in';
       var m = /Q?(\d)\w*\s+(\d+:\d{2})/.exec(g.detail || '');
-      var gm = { id: id, state: g.state, home: h, away: a, neutral: false, period: g.period || (m ? +m[1] : 0), clock: g.clock || (m ? m[2] : ''), situation: g.situation, broadcasts: g.broadcasts };
+      var gm = { id: id, state: g.state, home: h, away: a, neutral: false, period: g.period || (m ? +m[1] : 0), clock: g.clock || (m ? m[2] : ''), situation: g.situation, broadcasts: g.broadcasts, line: g.line };
       var p = GL.chance({ state: done || live ? 'post' : 'pre', home: h, away: a, neutral: false });
       var lp = live ? GL.chance(gm) : null;
       if (lp && lp.live) { samples.push(lp.home); if (samples.length > 120) samples.shift(); }
@@ -149,7 +149,7 @@
       GL.view.innerHTML = '<header class="page-h"><div class="h-row"><h1>' + esc(a.abbr) + ' at ' + esc(h.abbr) + '</h1>' + GL.shareButton(a.name + ' at ' + h.name) + '</div><p class="lede">' + esc(status) + (g.venue ? ' · ' + esc(g.venue) : '') + ' <span id="livedot" class="livedot" ' + (live ? '' : 'hidden') + '>Updating live</span></p></header>' +
         '<section class="panel scorebug"><a class="sb-team' + (done && a.winner ? ' win' : '') + '" href="#/team/' + esc(a.id) + '">' + GL.logo(ta, 'lg') + '<b>' + esc(ta.name || a.name) + '</b><small>' + esc(a.record) + '</small></a><div class="sb-score">' + esc(a.score === null ? '' : a.score) + '<span class="muted"> – </span>' + esc(h.score === null ? '' : h.score) + '</div><a class="sb-team' + (done && h.winner ? ' win' : '') + '" href="#/team/' + esc(h.id) + '">' + GL.logo(th, 'lg') + '<b>' + esc(th.name || h.name) + '</b><small>' + esc(h.record) + '</small></a>' +
         '<div class="odds sb-odds"><div class="odds-bar"><span style="width:' + (show.away * 100).toFixed(1) + '%;background:' + GL.visible(ta) + '"></span><span style="width:' + (show.home * 100).toFixed(1) + '%;background:' + GL.visible(th) + '"></span></div><div class="odds-txt"><span>' + esc(a.abbr) + ' ' + Model.pct(show.away) + '</span><span class="muted">' + (done ? 'pregame win chance' : show.live ? 'live win chance' : 'win chance') + '</span><span>' + Model.pct(show.home) + ' ' + esc(h.abbr) + '</span></div></div></section>' +
-        GL.watch(gm) + tracker + (g.available ? '<div class="stack">' + plays + (statRows ? '<section class="panel"><h2>Team stats</h2><table class="data vs"><thead><tr><th class="r">' + esc(a.abbr) + '</th><th class="c"></th><th>' + esc(h.abbr) + '</th></tr></thead><tbody>' + statRows + '</tbody></table></section>' : '') + '<div class="two">' + playerBlocks + '</div></div>' : GL.empty('The box score appears once the game starts.', 'Check back at kickoff.'));
+        GL.market(Object.assign({}, gm, { line: g.line || gm.line }), lp && lp.live ? lp : p) + GL.watch(gm) + tracker + (g.available ? '<div class="stack">' + plays + (statRows ? '<section class="panel"><h2>Team stats</h2><table class="data vs"><thead><tr><th class="r">' + esc(a.abbr) + '</th><th class="c"></th><th>' + esc(h.abbr) + '</th></tr></thead><tbody>' + statRows + '</tbody></table></section>' : '') + '<div class="two">' + playerBlocks + '</div></div>' : GL.empty('The box score appears once the game starts.', 'Check back at kickoff.'));
       GL.banner();
       if (first && live) GL.every(30000, function () { Api.summary(id, true).then(function (n) { return withBoard(n, true); }).then(function (n) { draw(n, false); }).catch(function () {}); });
     }

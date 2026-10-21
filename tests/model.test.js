@@ -176,3 +176,14 @@ test('parsers read broadcasts and the live situation', () => {
   assert.equal(s.shortText, '2nd & 7'); assert.equal(s.possession, '25'); assert.equal(s.where, 'SF 35');
   assert.equal(Api._parse.situation(null), null);
 });
+
+test('betting line and news parsers', () => {
+  const o = Api._parse.odds({ odds: [{ details: 'KC -3.5', overUnder: 47.5, provider: { name: 'ESPN BET' } }] }, 'KC');
+  assert.equal(o.homeMargin, 3.5); assert.equal(o.overUnder, 47.5);
+  assert.equal(Api._parse.odds({ odds: [{ details: 'KC -3.5' }] }, 'BUF').homeMargin, -3.5);
+  assert.equal(Api._parse.odds({ odds: [{ details: 'EVEN' }] }, 'BUF').homeMargin, 0);
+  assert.equal(Api._parse.odds({}, 'KC'), null);
+  const n = Api._parse.news({ articles: [{ headline: 'Hi', description: 'd', published: '2026-10-20T10:00Z', links: { web: { href: 'https://espn.com/x' } }, images: [{ url: 'https://a/b.jpg' }] }, { headline: 'bad link', links: { web: { href: 'javascript:alert(1)' } } }] });
+  assert.equal(n.length, 1); assert.equal(n[0].link, 'https://espn.com/x');
+  assert.equal(Api._parse.news({}).length, 0);
+});
