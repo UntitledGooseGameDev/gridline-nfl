@@ -1,0 +1,40 @@
+# Gridline: NFL stats
+
+A static website for following the NFL: this week's games, a full weekly schedule, standings, team pages with stats and rosters, and a win-chance estimate for every game.
+
+There is no server and no build step. The page asks ESPN's public NFL feeds for data directly from your browser, so it is always current.
+
+## Pages
+
+| Page | What it shows |
+|---|---|
+| This week | Every game this week with scores (live and final) and each team's chance to win, plus power rankings |
+| Schedule | Any of the 18 weeks, with win chances |
+| Standings | AFC and NFC tables with points for/against, streak and the model's strength number |
+| Teams | All 32 teams; each team page has a season schedule with a projected final record, team and opponent stats, and a searchable roster with injury tags |
+| The model | How the win chances are calculated |
+
+## How the win chances work
+
+A team's strength is its average scoring margin per game, pulled toward zero while it has played few games (`margin x games / (games + 6)`). A game's expected home margin is the strength difference plus 2 points for home field. The chance of winning is the normal curve of that margin divided by 13.2, the usual spread of NFL results around a prediction. It leaves out injuries, weather and last season, so treat it as a quick read. The code is in `js/model.js`.
+
+## Run it
+
+```
+npm start      # serves the folder at http://localhost:8080
+npm test       # 12 tests for the model and the data parsers
+```
+
+Any static host works. On GitHub Pages, choose "Deploy from a branch", `main`, `/ (root)`.
+
+## Data
+
+ESPN's public endpoints are unofficial and can change without notice. All parsing is in `js/api.js` and is written defensively; responses are cached in the browser for five minutes. This project is not affiliated with the NFL or ESPN.
+
+## Files
+
+- `index.html`, `css/style.css`: the shell and styles
+- `js/model.js`: the win-chance model (pure functions)
+- `js/api.js`: fetching and parsing
+- `js/app.js`: pages and routing
+- `tests/`: model and parser tests with small stand-in responses

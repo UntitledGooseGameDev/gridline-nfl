@@ -1,0 +1,11 @@
+{
+  "name": "gridline-nfl",
+  "version": "1.0.0",
+  "description": "NFL standings, weekly schedule, team stats, rosters and a simple win-chance model. Static site, live data in the browser.",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "MIT"
+}
