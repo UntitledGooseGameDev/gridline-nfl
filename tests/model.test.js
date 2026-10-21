@@ -16,7 +16,7 @@ test('rating shrinks small samples toward zero', () => {
   assert.equal(one.mov, 30);
   assert.ok(one.rating < 30 && one.rating > 0);
   assert.ok(many.rating > one.rating);
-  assert.deepEqual(Model.rating({ w: 0, l: 0, t: 0, pf: 0, pa: 0 }), { rating: 0, gp: 0, mov: 0 });
+  assert.equal(Model.rating({ w: 0, l: 0, t: 0, pf: 0, pa: 0 }).rating, 0);
 });
 
 test('equal teams: home field gives about 56%, neutral gives exactly 50%', () => {
@@ -97,4 +97,62 @@ test('parsers survive empty responses', () => {
   assert.equal(Api._parse.roster({}).groups[0].players.length, 0);
   assert.equal(Api._parse.stats({}).team.length, 0);
   assert.equal(Api._parse.schedule({}).length, 0);
+});
+
+test('last season gives a starting point that fades as games are played', () => {
+  const start = Model.rating({ w: 0, l: 0, t: 0, pf: 0, pa: 0 }, 10).rating;
+  assert.ok(Math.abs(start - 4) < 1e-9);
+  const later = Model.rating({ w: 12, l: 0, t: 0, pf: 120, pa: 120 }, 10).rating;
+  assert.ok(later > 0 && later < start);
+});
+
+test('injuries: a missing quarterback hurts far more than a kicker, and the total is capped', () => {
+  const qb = Model.injuryPenalty([{ pos: 'QB', status: 'Out' }]);
+  const k = Model.injuryPenalty([{ pos: 'K', status: 'Out' }]);
+  assert.ok(qb > 10 * k);
+  assert.equal(Model.injuryPenalty([{ pos: 'QB', status: 'Out' }, { pos: 'QB', status: 'Out' }]), Model.MAX_INJURY);
+  assert.equal(Model.injuryPenalty([{ pos: 'QB', status: 'Injured Reserve' }]), 0);
+  assert.equal(Model.injuryPenalty([]), 0);
+  assert.ok(Model.winProb(0, 0, true, 0, -5).home > 0.5);
+});
+
+test('season simulation: a dominant team almost always makes the playoffs and odds add up', () => {
+  const teams = {}, ids = [];
+  const names = Object.keys(Model.DIVISIONS);
+  names.forEach((d) => Model.DIVISIONS[d].forEach((ab, i) => { teams[ab] = { conf: d.slice(0, 3), div: d, w: 0, l: 0, t: 0, diff: 0 }; ids.push(ab); }));
+  const games = [];
+  ids.forEach((a, i) => { for (let k = 1; k <= 4; k++) games.push({ h: a, a: ids[(i + k * 3) % ids.length], p: a === 'KC' ? 0.97 : 0.5 }); });
+  const o = Model.simulateSeason(teams, games, 600, 7);
+  assert.ok(o.KC.playoff > 0.9);
+  const afc = ids.filter((x) => teams[x].conf === 'AFC');
+  assert.ok(Math.abs(afc.reduce((s, x) => s + o[x].playoff, 0) - 7) < 1e-9);
+  assert.ok(Math.abs(afc.reduce((s, x) => s + o[x].division, 0) - 4) < 1e-9);
+  assert.ok(Math.abs(afc.reduce((s, x) => s + o[x].topSeed, 0) - 1) < 1e-9);
+});
+
+test('backtest replays games in order and scores itself honestly', () => {
+  const g = (d, h, a, hs, as) => ({ date: d, neutral: false, home: { id: h, score: hs }, away: { id: a, score: as } });
+  const games = [g('1', 'A', 'B', 30, 10), g('2', 'A', 'C', 31, 3), g('3', 'B', 'C', 20, 17), g('4', 'A', 'B', 24, 20), g('5', 'C', 'A', 10, 10)];
+  const r = Model.backtest(games, {});
+  assert.equal(r.n, 4);
+  assert.ok(r.accuracy >= 0 && r.accuracy <= 1);
+  assert.ok(r.brier > 0 && r.brier < 0.5);
+  assert.equal(r.bins.reduce((s, b) => s + b.n, 0), 4);
+});
+
+test('pctSim keeps honest extremes', () => {
+  assert.equal(Model.pctSim(0), '0%'); assert.equal(Model.pctSim(1), '100%'); assert.equal(Model.pctSim(0.004), '<1%'); assert.equal(Model.pctSim(0.5), '50%');
+});
+
+test('new parsers: injuries, leaders, overview, summary survive real-looking and empty input', () => {
+  const inj = Api._parse.injuries({ injuries: [{ id: '12', injuries: [{ status: 'Out', athlete: { displayName: 'Pat Q', position: { abbreviation: 'QB' } }, details: { type: 'Knee', detail: 'Not Specified' }, shortComment: 'x' }] }] });
+  assert.equal(inj['12'][0].pos, 'QB'); assert.equal(inj['12'][0].detail, 'Knee');
+  assert.deepEqual(Api._parse.injuries({}), {});
+  const lead = Api._parse.leaders({ categories: [{ name: 'passing', labels: ['CMP', 'YDS'] }], athletes: [{ athlete: { id: '9', displayName: 'A B', position: { abbreviation: 'QB' }, teamShortName: 'KC', teamId: '12' }, categories: [{ name: 'passing', totals: ['10', '200'] }] }] }, 'passing');
+  assert.equal(lead.rows[0].values[1], '200'); assert.equal(lead.labels[0], 'CMP');
+  assert.equal(Api._parse.leaders({}, 'passing').rows.length, 0);
+  const ov = Api._parse.overview({ statistics: { displayName: '2026 Season', labels: ['GP'], splits: [{ displayName: 'Regular Season', stats: ['6'] }] } });
+  assert.equal(ov.splits[0].stats[0], '6');
+  assert.equal(Api._parse.summary({}).available, false);
+  assert.equal(Api._parse.summary({}).state, 'pre');
 });

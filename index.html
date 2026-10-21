@@ -6,6 +6,9 @@
 <title>Gridline: NFL stats, schedule and win chances</title>
 <meta name="description" content="Live NFL standings, weekly schedule, team stats, rosters and a simple win-chance model for every game.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6f43">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
@@ -23,18 +26,27 @@
       <a href="#/" data-nav="home">This week</a>
       <a href="#/schedule" data-nav="schedule">Schedule</a>
       <a href="#/standings" data-nav="standings">Standings</a>
+      <a href="#/playoffs" data-nav="playoffs">Playoffs</a>
       <a href="#/teams" data-nav="teams">Teams</a>
+      <a href="#/leaders" data-nav="leaders">Leaders</a>
+      <a href="#/compare" data-nav="compare">Compare</a>
+      <a href="#/picks" data-nav="picks">Pick’em</a>
       <a href="#/model" data-nav="model">The model</a>
     </nav>
   </div>
 </header>
+<div id="banner" class="wrap" hidden></div>
 <main class="wrap" id="view" tabindex="-1"><div class="state"><div class="spin"></div><p>Loading…</p></div></main>
 <footer class="wrap foot">
-  <p>Data from ESPN's public NFL feeds, fetched live in your browser. Not affiliated with the NFL or ESPN. Win chances are an estimate from scores so far, for fun, not betting advice.</p>
+  <p><span id="updated"></span> Data from ESPN's public NFL feeds, fetched live in your browser. Not affiliated with the NFL or ESPN. Win chances are an estimate from scores so far, for fun, not betting advice.</p>
 </footer>
 <noscript><p class="wrap">Gridline needs JavaScript to load live NFL data.</p></noscript>
 <script src="js/model.js"></script>
 <script src="js/api.js"></script>
+<script src="js/core.js"></script>
+<script src="js/pages-main.js"></script>
+<script src="js/pages-more.js"></script>
 <script src="js/app.js"></script>
+<div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

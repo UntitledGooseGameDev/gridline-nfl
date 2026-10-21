@@ -38,3 +38,17 @@ ESPN's public endpoints are unofficial and can change without notice. All parsin
 - `js/api.js`: fetching and parsing
 - `js/app.js`: pages and routing
 - `tests/`: model and parser tests with small stand-in responses
+
+## What's in v2
+
+- **Playoff picture**: division / playoff / #1 seed odds from 4,000 simulated seasons, plus seeds if the season ended today.
+- **Smarter win chances**: starts from last season's margins and adjusts for injuries (QB out counts most).
+- **Report card** on the model page: the model replayed over finished games (accuracy, Brier score, calibration).
+- **League leaders**, **player pages**, live **box scores** (auto-refresh every 30 s during games), **compare two teams**.
+- **Pick'em** tracker (saved in your browser), **favorite team**, **share** buttons.
+- **Installable app** (manifest + service worker for the offline shell), offline copies of the latest data, "data updated" time.
+- Playoff and Super Bowl weeks in the schedule.
+
+Pages that depend on a feed that fails (injuries, leaders, box scores) show a friendly message or switch off just that feature; `#/debug` tests every feed.
+
+Run `npm test` for the unit tests.
