@@ -43,8 +43,12 @@
   /* ---------- shared data ---------- */
   function ensureBase() {
     if (state.standings && state.teams) return Promise.resolve();
-    return Promise.all([Api.standings(), Api.teams()]).then(function (r) {
+    // The team list only adds colors, so the site still works if it cannot be loaded.
+    return Promise.all([Api.standings(), Api.teams().catch(function () { return {}; })]).then(function (r) {
       state.standings = r[0]; state.teams = r[1];
+      Object.keys(state.standings).forEach(function (id) {
+        if (!state.teams[id]) { var s = state.standings[id]; state.teams[id] = { id: id, name: s.name, short: s.short, abbr: s.abbr, logo: s.logo, color: '', alt: '' }; }
+      });
       var ratings = {};
       Object.keys(state.standings).forEach(function (id) { ratings[id] = Model.rating(state.standings[id]); });
       state.ratings = ratings;

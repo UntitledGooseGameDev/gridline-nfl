@@ -199,7 +199,7 @@
   /* ---------- public calls ---------- */
 
   var api = {
-    teams: function () { return getJSON(both(HOSTS, '/teams?limit=40')).then(parseTeams); },
+    teams: function () { return getJSON(both(HOSTS, '/teams').concat(both(HOSTS, '/teams?limit=40'))).then(parseTeams); },
     standings: function () { return getJSON(both(HOSTS_V2, '/standings')).then(parseStandings); },
     scoreboard: function (week, seasonType) {
       var q = week ? '?week=' + week + '&seasontype=' + (seasonType || 2) : '';
@@ -209,7 +209,7 @@
     teamStats: function (id) { return getJSON(both(HOSTS, '/teams/' + encodeURIComponent(id) + '/statistics')).then(parseStats); },
     schedule: function (id) { return getJSON(both(HOSTS, '/teams/' + encodeURIComponent(id) + '/schedule')).then(parseSchedule); },
     probe: function () {
-      var list = both(HOSTS, '/scoreboard').concat(both(HOSTS, '/teams?limit=40'), both(HOSTS_V2, '/standings'));
+      var list = both(HOSTS, '/scoreboard').concat(both(HOSTS, '/teams'), both(HOSTS, '/teams?limit=40'), both(HOSTS_V2, '/standings'));
       return Promise.all(list.map(function (u) {
         return fetch(u).then(function (r) { return { url: u, ok: r.ok, note: 'HTTP ' + r.status }; }).catch(function (e) { return { url: u, ok: false, note: (e && e.message) || 'blocked' }; });
       }));
