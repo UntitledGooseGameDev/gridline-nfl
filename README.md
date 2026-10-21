@@ -63,3 +63,10 @@ Run `npm test` for the unit tests.
 - **Alerts** (team page, once it's your team): kickoff, score changes and final, as browser notifications. They only fire while Gridline is open in a tab or installed app, because a static site has no server to push from.
 - **Headlines** on the home page and a News tab on each team, linking to ESPN articles.
 - **Market line**: ESPN's spread and over/under shown next to the model's number on each game, for information only.
+
+## Alerts when the site is closed
+A scheduled GitHub Action (`.github/workflows/alerts.yml`, every ~5 minutes) checks ESPN and pushes kickoff, score and final alerts through [ntfy.sh](https://ntfy.sh). Setup:
+1. Install the free **ntfy** app (iPhone or Android) and subscribe to a long random topic name, e.g. `gridline-yourname-7f3k2`.
+2. In the repo: Settings > Secrets and variables > Actions > **Secrets** > New secret `NTFY_TOPIC` = that topic.
+3. Same page, **Variables** > New variable `ALERT_TEAMS` = team abbreviations like `SF,KC` (or `ALL`).
+Alerts can arrive a few minutes late; GitHub does not guarantee the schedule. Anyone who knows your topic name can read your alerts, so keep it private.

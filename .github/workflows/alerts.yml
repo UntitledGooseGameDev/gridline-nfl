@@ -1,0 +1,30 @@
+name: Game alerts
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # GitHub may run this a few minutes late
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency: { group: alerts, cancel-in-progress: false }
+jobs:
+  alerts:
+    if: ${{ vars.ALERT_TEAMS != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: alerts-state.json
+          key: alerts-state-none
+          restore-keys: alerts-state-
+      - run: node scripts/alerts.js
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT_TEAMS: ${{ vars.ALERT_TEAMS }}
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: alerts-state.json
+          key: alerts-state-${{ github.run_id }}

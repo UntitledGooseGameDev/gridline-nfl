@@ -187,3 +187,17 @@ test('betting line and news parsers', () => {
   assert.equal(n.length, 1); assert.equal(n[0].link, 'https://espn.com/x');
   assert.equal(Api._parse.news({}).length, 0);
 });
+
+test('closed-app alerts: kickoff, score and final are detected once, other teams are ignored', () => {
+  const A = require('../scripts/alerts.js');
+  const g = (state, hs, as) => ({ state, detail: 'Q2 1:13', home: 'DET', away: 'SF', hs, as, homeName: 'Detroit Lions', awayName: 'San Francisco 49ers' });
+  const other = { state: 'pre', detail: '', home: 'KC', away: 'BUF', hs: 0, as: 0, homeName: 'Chiefs', awayName: 'Bills' };
+  assert.equal(A.diff({}, { 1: g('in', 0, 3) }, ['SF']).length, 0);
+  assert.match(A.diff({ 1: g('pre', 0, 0) }, { 1: g('in', 0, 0) }, ['SF'])[0].title, /Kickoff/);
+  assert.match(A.diff({ 1: g('in', 0, 0) }, { 1: g('in', 0, 3) }, ['SF'])[0].body, /SF 3 – 0 DET/);
+  assert.equal(A.diff({ 1: g('in', 0, 3) }, { 1: g('in', 0, 3) }, ['SF']).length, 0);
+  assert.match(A.diff({ 1: g('in', 7, 3) }, { 1: g('post', 7, 3) }, ['DET'])[0].body, /Detroit Lions win/);
+  assert.equal(A.diff({ 2: other }, { 2: Object.assign({}, other, { state: 'in' }) }, ['SF']).length, 0);
+  assert.equal(A.diff({ 2: other }, { 2: Object.assign({}, other, { state: 'in' }) }, ['ALL']).length, 1);
+  assert.equal(A.summarize({ events: [{ id: '9', status: { type: { state: 'in', shortDetail: 'Q1' } }, competitions: [{ competitors: [{ homeAway: 'home', score: '7', team: { abbreviation: 'DET', displayName: 'Detroit Lions' } }, { homeAway: 'away', score: '3', team: { abbreviation: 'SF', displayName: 'SF' } }] }] }] })[9].hs, 7);
+});
