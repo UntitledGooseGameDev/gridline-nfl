@@ -40,6 +40,14 @@
   }
   GL.route = route;
 
+  /* Time zone picker in the footer */
+  (function () {
+    var sel = document.getElementById('tzsel'); if (!sel) return;
+    sel.innerHTML = GL.TZONES.map(function (z) { return '<option value="' + z[0] + '">' + z[1] + '</option>'; }).join('');
+    sel.value = GL.tz();
+    sel.onchange = function () { GL.setTz(sel.value); route(); drawNow(); };
+  })();
+
   /* "On now" strip: live games on every page, with a close button (stays closed for this browser session). */
   function hidden() { try { return sessionStorage.getItem('gl.nowHidden') === '1'; } catch (e) { return false; } }
   function setHidden(v) { try { if (v) sessionStorage.setItem('gl.nowHidden', '1'); else sessionStorage.removeItem('gl.nowHidden'); } catch (e) {} }

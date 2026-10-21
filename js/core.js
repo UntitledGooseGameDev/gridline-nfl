@@ -31,8 +31,13 @@
     if (a && GL.lum(a) > 0.2) return a;
     return '#7aa2ff';
   };
-  GL.dayLabel = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); };
-  GL.timeLabel = function (iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); };
+  /** Chosen time zone ('' means this device's own). Stored in the browser. */
+  GL.tz = function () { var z = GL.store.get('tz', ''); try { if (z) new Intl.DateTimeFormat(undefined, { timeZone: z }); else z = ''; } catch (e) { z = ''; } return z; };
+  GL.setTz = function (z) { GL.store.set('tz', z || ''); };
+  GL.TZONES = [['', 'My device'], ['America/New_York', 'Eastern'], ['America/Chicago', 'Central'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona'], ['America/Los_Angeles', 'Pacific'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii'], ['UTC', 'UTC'], ['Europe/London', 'London'], ['Europe/Berlin', 'Central Europe'], ['Asia/Tokyo', 'Tokyo'], ['Australia/Sydney', 'Sydney']];
+  function fmt(iso, opts) { var d = new Date(iso); if (isNaN(d)) return ''; var z = GL.tz(); if (z) opts.timeZone = z; return d.toLocaleString(undefined, opts); }
+  GL.dayLabel = function (iso) { return fmt(iso, { weekday: 'short', month: 'short', day: 'numeric' }); };
+  GL.timeLabel = function (iso) { return fmt(iso, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }); };
   GL.fmt1 = function (n) { return (Math.round(n * 10) / 10).toFixed(1); };
   GL.signed = function (n) { var v = Math.round(n * 10) / 10; return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1); };
   GL.nice = function (s) { return String(s || '').replace(/([A-Z])/g, ' $1').replace(/^./, function (c) { return c.toUpperCase(); }); };
@@ -71,7 +76,7 @@
       if (Api.meta.stale) { b.hidden = false; b.textContent = 'You appear to be offline. Showing the last data saved on this device (' + new Date(Api.meta.staleAt).toLocaleString() + ').'; }
       else b.hidden = true;
     }
-    if (u) u.textContent = Api.meta.updatedAt ? 'Data updated ' + new Date(Api.meta.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) + '.' : '';
+    if (u) u.textContent = Api.meta.updatedAt ? 'Data updated ' + fmt(Api.meta.updatedAt, { hour: 'numeric', minute: '2-digit' }) + '.' : '';
   };
 
   /* ---------- states ---------- */
