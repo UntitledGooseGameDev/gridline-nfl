@@ -272,6 +272,14 @@
       '<h2 class="sub">Where the data comes from</h2><p>Live from ESPN\'s public NFL endpoints, fetched by your browser and cached for five minutes. They are unofficial and can change without notice.</p></div>';
   }
 
+  function pageDebug() {
+    loading('Testing connections to ESPN…');
+    Api.probe().then(function (rows) {
+      view.innerHTML = '<header class="page-h"><h1>Connection test</h1><p class="lede">Each line is a feed this site needs. If every line fails, your browser or network is blocking ESPN.</p></header><div class="panel"><table class="data"><tbody>' +
+        rows.map(function (r) { return '<tr><td>' + (r.ok ? '<span class="pos">OK</span>' : '<span class="neg">Failed</span>') + '</td><td>' + esc(r.note) + '</td><td style="white-space:normal;word-break:break-all">' + esc(r.url) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    });
+  }
+
   /* ---------- router ---------- */
   var routes = [
     [/^\/?$/, function () { pageHome(); }, 'home'],
@@ -280,6 +288,7 @@
     [/^\/teams$/, function () { pageTeams(); }, 'teams'],
     [/^\/team\/(\d+)(?:\/(\w+))?$/, function (m) { pageTeam(m[1], m[2]); }, 'teams'],
     [/^\/model$/, function () { pageModel(); }, 'model'],
+    [/^\/debug$/, function () { pageDebug(); }, ''],
   ];
   function route() {
     var path = location.hash.replace(/^#/, '') || '/';

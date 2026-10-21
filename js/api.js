@@ -8,6 +8,10 @@
 
   var BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
   var BASE_V2 = 'https://site.api.espn.com/apis/v2/sports/football/nfl';
+  var ALT = 'https://site.web.api.espn.com/apis';
+  var HOSTS = [BASE, 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl'];
+  var HOSTS_V2 = [BASE_V2, 'https://site.web.api.espn.com/apis/v2/sports/football/nfl'];
+  function both(hosts, path) { return hosts.map(function (h) { return h + path; }); }
   var TTL_MS = 5 * 60 * 1000;
   var memory = {};
 
@@ -29,13 +33,25 @@
     try { sessionStorage.setItem('gl:' + url, JSON.stringify(obj)); } catch (e) { /* ignore */ }
   }
 
-  function getJSON(url) {
-    var cached = cacheGet(url);
+  /** Fetch JSON, trying each address in turn (ESPN serves the same data from two hosts). */
+  function getJSON(urls) {
+    if (typeof urls === 'string') urls = [urls];
+    var cached = cacheGet(urls[0]);
     if (cached) return Promise.resolve(cached);
-    return fetch(url).then(function (r) {
-      if (!r.ok) throw new Error('The data service answered ' + r.status);
-      return r.json();
-    }).then(function (j) { cacheSet(url, j); return j; });
+    var lastErr = null;
+    function attempt(i) {
+      if (i >= urls.length) {
+        var path = urls[0].replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+        var e = new Error('Could not reach ESPN for ' + path + (lastErr ? ' (' + lastErr + ')' : '') + '. Open #/debug to see which feeds your browser can reach.');
+        return Promise.reject(e);
+      }
+      return fetch(urls[i]).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (j) { cacheSet(urls[0], j); return j; })
+        .catch(function (err) { lastErr = err && err.message ? err.message : String(err); return attempt(i + 1); });
+    }
+    return attempt(0);
   }
 
   function num(v, d) { var n = parseFloat(v); return isFinite(n) ? n : (d === undefined ? 0 : d); }
@@ -183,15 +199,21 @@
   /* ---------- public calls ---------- */
 
   var api = {
-    teams: function () { return getJSON(BASE + '/teams?limit=40').then(parseTeams); },
-    standings: function () { return getJSON(BASE_V2 + '/standings').then(parseStandings); },
+    teams: function () { return getJSON(both(HOSTS, '/teams?limit=40')).then(parseTeams); },
+    standings: function () { return getJSON(both(HOSTS_V2, '/standings')).then(parseStandings); },
     scoreboard: function (week, seasonType) {
       var q = week ? '?week=' + week + '&seasontype=' + (seasonType || 2) : '';
-      return getJSON(BASE + '/scoreboard' + q).then(parseScoreboard);
+      return getJSON(both(HOSTS, '/scoreboard' + q)).then(parseScoreboard);
     },
-    roster: function (id) { return getJSON(BASE + '/teams/' + encodeURIComponent(id) + '/roster').then(parseRoster); },
-    teamStats: function (id) { return getJSON(BASE + '/teams/' + encodeURIComponent(id) + '/statistics').then(parseStats); },
-    schedule: function (id) { return getJSON(BASE + '/teams/' + encodeURIComponent(id) + '/schedule').then(parseSchedule); },
+    roster: function (id) { return getJSON(both(HOSTS, '/teams/' + encodeURIComponent(id) + '/roster')).then(parseRoster); },
+    teamStats: function (id) { return getJSON(both(HOSTS, '/teams/' + encodeURIComponent(id) + '/statistics')).then(parseStats); },
+    schedule: function (id) { return getJSON(both(HOSTS, '/teams/' + encodeURIComponent(id) + '/schedule')).then(parseSchedule); },
+    probe: function () {
+      var list = both(HOSTS, '/scoreboard').concat(both(HOSTS, '/teams?limit=40'), both(HOSTS_V2, '/standings'));
+      return Promise.all(list.map(function (u) {
+        return fetch(u).then(function (r) { return { url: u, ok: r.ok, note: 'HTTP ' + r.status }; }).catch(function (e) { return { url: u, ok: false, note: (e && e.message) || 'blocked' }; });
+      }));
+    },
     // exposed for tests
     _parse: { teams: parseTeams, standings: parseStandings, scoreboard: parseScoreboard, roster: parseRoster, stats: parseStats, schedule: parseSchedule },
   };
